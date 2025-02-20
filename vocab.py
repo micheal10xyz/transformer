@@ -5,13 +5,8 @@ import spacy
 import thulac
 
 train_data_path = 'dataset/damo_mt_testsets_zh2en_news_wmt18.csv'
-
-df = pd.DataFrame([
-    ['声明补充说，沃伦的同事都深感震惊，并且希望他能够投案自首。', 'The statement added that Warren\'s colleagues were shocked and want him to turn himself in.'],
-    ['不光改变硬件，软件也要跟上', 'We should not only change the hardware, but the software must also keep up.'],
-    ['让各种文明和谐共存。', 'and allow all civilizations to coexist harmoniously.']
-], columns=['0', '1'])
-# df = pd.read_csv(train_data_path)
+df = pd.read_csv(train_data_path)
+df = df.head(10)
 
 class Vocab:
     def __init__(self, tokens, min_freqs=0, reserved_tokens=None):
@@ -39,6 +34,9 @@ class Vocab:
 
     def get_tokens(self, ids):
         return map(lambda id: self.id_to_token[id] if id >= 0 and id < len(self.id_to_token) else self.unk)
+    
+    def __len__(self):
+        return len(self.id_to_token)
 
 
 def src_vocab():
@@ -57,5 +55,6 @@ def tgt_vocab():
 
     
 # test
-# vocab = src_vocab()
-# print(vocab.get_token_ids(['声明', '[unk]']))
+if __name__ == '__main__':
+    vocab = src_vocab()
+    print(len(vocab))
