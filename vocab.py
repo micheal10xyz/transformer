@@ -1,8 +1,7 @@
 import torch
 import pandas as pd
 from collections import Counter
-import spacy
-import thulac
+import tokenizer
 
 train_data_path = 'dataset/damo_mt_testsets_zh2en_news_wmt18.csv'
 df = pd.read_csv(train_data_path)
@@ -40,17 +39,16 @@ class Vocab:
 
 
 def src_vocab():
-    tokenizer = thulac.thulac(seg_only=True)
+    
     tokens = []
     for sentence in df['0']:
-        tokens = tokens + tokenizer.cut(sentence, True).split()
+        tokens = tokens + tokenizer.tokenize_zh(sentence)
     return Vocab(tokens, reserved_tokens=['[pad]', '[bos]', '[eos]'])
 
 def tgt_vocab():
-    tokenizer = spacy.load('en_core_web_sm')
     tokens = []
     for sentence in df['1']:
-       tokens = tokens + [token.text for token in tokenizer(sentence)]
+       tokens = tokens + tokenizer.tokenize_en(sentence)
     return Vocab(tokens, reserved_tokens=['[pad]', '[bos]', '[eos]'])
 
     
