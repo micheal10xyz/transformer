@@ -3,6 +3,8 @@ import pandas as pd
 from data import get_zh_en_data_loader
 from transformer import Transformer
 import vocab
+import tokenizer
+
 
 
 def train():
@@ -20,7 +22,8 @@ def train():
     for epoch in range(num_epoch):
         data_loader = get_zh_en_data_loader()
         for batch_src, batch_tgt in data_loader:
-        
+
+            
 
 
 
