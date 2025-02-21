@@ -13,7 +13,7 @@ class ZhEnDataset(Dataset):
     
 
     def __len__(self):
-        return 10
+        return 2
         # return len(self.df)
     
 def get_zh_en_data_loader():
