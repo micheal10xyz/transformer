@@ -9,13 +9,10 @@ class Transformer(nn.Module):
         self.linear = nn.Linear(d_model, tgt_vocab_size)
     
     
-    def forward(self, src, tgt, src_mask, tgt_mask):
-        """
-        Args:
-            src (torch.Tensor): 源序列，shape [batch_size, seq_len]
-            tgt (torch.Tensor): 目标序列，shape [batch_size, seq_len]
-            src_mask (torch.Tensor): 源序列掩码，shape [batch_size, seq_len, seq_len]
-            tgt_mask (torch.Tensor): 目标序列掩码，shape [batch_size, seq_len, seq_len]
-        """
-        enc_output = self.encoder(src, src_mask)
-        pass
+    def forward(self, encoder_input, encoder_valid_lens, decoder_input):
+       # todo 编码器输入掩码
+       # todo 编码器输出
+       # todo 解码器输入掩码
+       # todo 解码器输出
+       # todo 计算logits
+       pass
