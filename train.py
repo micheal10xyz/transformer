@@ -64,7 +64,7 @@ def train():
             decoder_input = torch.cat((decoder_input, tgt_batch_token_ids[:, :-1]), dim=1)
             print(decoder_input)
 
-            # predict_output = transformer(src_batch_token_ids, src_valid_lens, decoder_input)
+            predict_output = transformer(src_batch_token_ids, src_valid_lens, decoder_input)
 
             # todo
     
