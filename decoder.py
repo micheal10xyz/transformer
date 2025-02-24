@@ -8,16 +8,22 @@ import ffn
 class Block(nn.Module):
     def __init__(self, d_model, num_heads, num_ffn_hiddens, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.attention = attention.MultiHeadAttention(d_model, num_heads)
+        self.self_attention = attention.MultiHeadAttention(d_model, num_heads)
+        self.encoder_decoder_attention = attention.MultiHeadAttention(d_model, num_heads)
         self.norm = nn.LayerNorm(d_model)
         self.position_wise_ffn = ffn.PositionWiseFFN(d_model, num_ffn_hiddens, d_model)
 
     
-    def forward(self, encoder_output, decoder_input, decoder_input_valid_lens):
+    def forward(self, encoder_output, encoder_valid_lens, decoder_input, decoder_input_valid_lens, device:None):
         # 对decoder_input计算自注意力
-        self_attention = self.attention(decoder_input, decoder_input, decoder_input)
+        self_attention = self.self_attention(decoder_input, decoder_input, decoder_input, decoder_input_valid_lens, device)
+        queries = self.norm(decoder_input + self_attention)
         # 计算encoder-decoder注意力
+        encoder_decoder_attention = self.encoder_decoder_attention(queries, encoder_output, encoder_output, encoder_valid_lens, device)
+        ffn_input = self.norm(queries + encoder_decoder_attention)
         # ffn
+        ffn_output = self.position_wise_ffn(ffn_input)
+        return self.norm(ffn_input + ffn_output)
 
 
 class Decoder(nn.Module):
@@ -27,7 +33,7 @@ class Decoder(nn.Module):
         self.positional_encoding = positional_encoding.PositionEncoding(d_model, max_pos=1000)
         self.decoder_blocks = [Block(d_model, num_heads, num_ffn_hiddens) for _ in range(num_layers)]
     
-    def forward(self, encoder_output, decoder_input):
+    def forward(self, encoder_output, encoder_valid_lens, decoder_input, device:None):
         """解码器解码
 
         Args:
@@ -38,8 +44,10 @@ class Decoder(nn.Module):
         embedings = self.embedding(decoder_input) # shape [batch_size, tgt_seq_len, d_model]
         # 添加位置编码
         block_input = self.positional_encoding(embedings)
+        # 计算decoder_input掩码
+        decoder_input_valid_lens = torch.arange(decoder_input.shape[1], device=device).repeat(decoder_input.shape[0], 1)
         # decoder block 
         for block in self.decoder_blocks:
-            block_input = block(encoder_output, block_input)
+            block_input = block(encoder_output, encoder_valid_lens, block_input, decoder_input_valid_lens)
 
         return block_input

@@ -7,14 +7,22 @@ def encode_mask(seq_len, valid_lens, device:None):
     计算编码器掩码
     Args:
         seq_len (int): 序列长度
-        valid_lens (Tensor): shape [batch_size] 有效长度
+        valid_lens (Tensor): shape [batch_size] or [batch_size, seq_len] 有效长度
         device(str): 在device运行存储张量
 
     Returns:
         Tensor: dtype bool, shape [batch_size, seq_len, seq_len], 编码器掩码
     """
-    mask = torch.arange(seq_len, device=device).unsqueeze(0) >= valid_lens.unsqueeze(1)
-    return mask.unsqueeze(1).repeat(1, seq_len, 1)
+    if valid_lens is None:
+        return None
+    elif valid_lens.dim() == 1:
+        valid_lens = valid_lens.repeat_interleave(seq_len).reshape(-1, seq_len)
+    else:
+        pass
+    
+    return torch.arange(seq_len, device=device).repeat(valid_lens.shape[0], 1).unsqueeze(1) >= valid_lens.unsqueeze(2)
+    # mask = torch.arange(seq_len, device=device).unsqueeze(0) >= valid_lens.unsqueeze(1)
+    # return mask.unsqueeze(1).repeat(1, seq_len, 1)
 
 
 class DotPructAttention(nn.Module):
@@ -29,7 +37,7 @@ class DotPructAttention(nn.Module):
             queries (Tensor): shape [batch_size * num_heads, seq_len, h_d_model]
             keys (Tensor): shape [batch_size * num_heads, seq_len, h_d_model]
             values (Tensor): shape [batch_size * num_heads, seq_len, h_d_model]
-            valid_lens (Tensor): shape [batch_size] 有效长度
+            valid_lens (Tensor): shape [batch_size] or [batch_size, seq_len] 有效长度
             device (str): 在device运行存储张量
 
         Returns:
@@ -68,7 +76,7 @@ class MultiHeadAttention(nn.Module):
             queries (Tensor): shape [batch_size, seq_len, d_model]
             keys (Tensor): shape [batch_size, seq_len, d_model]
             values (Tensor): shape [batch_size, seq_len, d_model]
-            valid_lens (Tensor): shape [batch_size] 有效长度
+            valid_lens (Tensor): shape [batch_size] or [batch_size, seq_len] 有效长度
             device (str): 在device运行存储张量
 
         Returns:
