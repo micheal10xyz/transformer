@@ -1,10 +1,11 @@
 import torch
 from torch import nn
+import encoder
 
 class Transformer(nn.Module):
-    def __init__(self, d_model, tgt_vocab_size, *args, **kwargs):
+    def __init__(self, d_model, num_layers, num_heads, num_ffn_hiddens, src_vocab_size, tgt_vocab_size, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.encoder = None
+        self.encoder = encoder.Encoder(d_model=d_model, num_layers=num_layers, num_heads=num_heads, num_ffn_hiddens=num_ffn_hiddens, vocab_size=src_vocab_size)
         self.decoder = None
         self.linear = nn.Linear(d_model, tgt_vocab_size)
     
