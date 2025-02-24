@@ -1,18 +1,30 @@
 import torch
 from torch import nn
 import positional_encoding
+import attention
 
 class Block(nn.Module):
     def __init__(self, d_model, num_heads, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.attention = attention.MultiHeadAttention(d_model, num_heads)
+        self.add = None
+        self.layer_norm = None
 
 
     def forward(self, input, valid_lens):
+        """编码器块
+
+        Args:
+            input (Tensor): shape [batch_size, seq_len, d_model]
+            valid_lens (_type_): shape [batch_size]
+        """
         # 计算点积注意力
-        # 残差连接，层归一化
-        # 多层感知机
-        # 残差连接，层归一化
+        attention_score = self.attention(input, input, input, valid_lens)
+        # todo 残差连接，层归一化
+        # todo 多层感知机
+        # todo 残差连接，层归一化
         pass
+
 
 class Encoder(nn.Module):
     def __init__(self, d_model, num_layers, num_heads, vocab_size, *args, **kwargs):
