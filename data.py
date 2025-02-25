@@ -13,13 +13,13 @@ class ZhEnDataset(Dataset):
     
 
     def __len__(self):
-        return 2
-        # return len(self.df)
+        # return 2
+        return len(self.df)
     
 def get_zh_en_data_loader():
     file_path = 'dataset/damo_mt_testsets_zh2en_news_wmt18.csv'
     dataset = ZhEnDataset(file_path)
-    return DataLoader(dataset, 2, shuffle=True)
+    return DataLoader(dataset, 8, shuffle=True)
 
 
 if __name__ == '__main__':

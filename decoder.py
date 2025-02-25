@@ -14,7 +14,7 @@ class Block(nn.Module):
         self.position_wise_ffn = ffn.PositionWiseFFN(d_model, num_ffn_hiddens, d_model)
 
     
-    def forward(self, encoder_output, encoder_valid_lens, decoder_input, decoder_input_valid_lens, device:None):
+    def forward(self, encoder_output, encoder_valid_lens, decoder_input, decoder_input_valid_lens, device=None):
         # 对decoder_input计算自注意力
         self_attention = self.self_attention(decoder_input, decoder_input, decoder_input, decoder_input_valid_lens, device)
         queries = self.norm(decoder_input + self_attention)
@@ -45,7 +45,7 @@ class Decoder(nn.Module):
         # 添加位置编码
         block_input = self.positional_encoding(embedings)
         # 计算decoder_input掩码
-        decoder_input_valid_lens = torch.arange(decoder_input.shape[1], device=device).repeat(decoder_input.shape[0], 1)
+        decoder_input_valid_lens = torch.arange(1, decoder_input.shape[1] + 1, device=device).repeat(decoder_input.shape[0], 1)
         # decoder block 
         for block in self.decoder_blocks:
             block_input = block(encoder_output, encoder_valid_lens, block_input, decoder_input_valid_lens)
