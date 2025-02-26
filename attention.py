@@ -52,9 +52,10 @@ class DotPructAttention(nn.Module):
         q_seq_len = queries.shape[1]
         k_seq_len = keys.shape[1]
         mask = encode_mask(q_seq_len, k_seq_len, valid_lens, device)
-        num_heads = queries.shape[0] // valid_lens.shape[0]
-        mask = mask.repeat_interleave(num_heads, dim=0)
-        attention_score = attention_score.masked_fill(mask, 1e-6)
+        if mask is not None:
+            num_heads = queries.shape[0] // valid_lens.shape[0]
+            mask = mask.repeat_interleave(num_heads, dim=0)
+            attention_score = attention_score.masked_fill(mask, 1e-6)
         # 对注意力得分softmax，然后和values做矩阵乘法
         return torch.bmm(torch.softmax(attention_score, dim=2), values)
 

@@ -6,24 +6,42 @@ import ffn
 
 
 class Block(nn.Module):
-    def __init__(self, d_model, num_heads, num_ffn_hiddens, *args, **kwargs):
+    def __init__(self, d_model, num_heads, num_ffn_hiddens, blk_no, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.blk_no = blk_no
         self.self_attention = attention.MultiHeadAttention(d_model, num_heads)
         self.encoder_decoder_attention = attention.MultiHeadAttention(d_model, num_heads)
         self.norm = nn.LayerNorm(d_model)
         self.position_wise_ffn = ffn.PositionWiseFFN(d_model, num_ffn_hiddens, d_model)
 
     
-    def forward(self, enc_in, enc_valid_lens, dec_in, dec_in_valid_lens, device=None):
+    def forward(self, dec_in, enc_out, enc_valid_lens, dec_key_values_cache, device=None):
+        # 计算dec_in掩码, 训练过程是在一个时间步（time step）完成的，需要防止在计算自注意力时关注到未来的信息，需要对注意力的上三角添加掩码
+        # 在推理阶段，因为自回归的，每个时间步预测一个token，不存在未来信息，不需要添加掩码
+        if self.training:
+            dec_in_valid_lens = torch.arange(1, dec_in.shape[1] + 1, device=device).repeat(dec_in.shape[0], 1)
+        else:
+            dec_in_valid_lens = None
+        
+        if dec_key_values_cache is None:
+            key_values = dec_in
+        else:
+            key_values = dec_key_values_cache[self.blk_no]
+            key_values = dec_in if key_values is None else torch.cat((key_values, dec_in), dim=1)
+            dec_key_values_cache[self.blk_no] = key_values
+
         # 对dec_in计算自注意力
-        self_attention = self.self_attention(dec_in, dec_in, dec_in, dec_in_valid_lens, device)
-        queries = self.norm(dec_in + self_attention)
+        dec_self_attention = self.self_attention(dec_in, key_values, key_values, dec_in_valid_lens, device)
+        # 残差连接，层归一化
+        queries = self.norm(dec_in + dec_self_attention)
         # 计算encoder-decoder注意力
-        encoder_decoder_attention = self.encoder_decoder_attention(queries, enc_in, enc_in, enc_valid_lens, device)
-        ffn_input = self.norm(queries + encoder_decoder_attention)
-        # ffn
-        ffn_output = self.position_wise_ffn(ffn_input)
-        return self.norm(ffn_input + ffn_output)
+        enc_dec_attention = self.encoder_decoder_attention(queries, enc_out, enc_out, enc_valid_lens, device)
+        # 残差连接，层归一化
+        ffn_in = self.norm(queries + enc_dec_attention)
+        # 前馈神经网络
+        ffn_out = self.position_wise_ffn(ffn_in)
+        # 残差连接，层归一化
+        return self.norm(ffn_in + ffn_out)
 
 
 class Decoder(nn.Module):
@@ -31,23 +49,31 @@ class Decoder(nn.Module):
         super().__init__(*args, **kwargs)
         self.embedding = nn.Embedding(vocab_size, d_model)
         self.positional_encoding = positional_encoding.PositionEncoding(d_model, max_pos=1000)
-        self.dec_blks = [Block(d_model, num_heads, num_ffn_hiddens) for _ in range(num_layers)]
+        self.dec_blks = [Block(d_model, num_heads, num_ffn_hiddens, i) for i in range(num_layers)]
+        self.num_layers = num_layers
     
-    def forward(self, enc_in, enc_valid_lens, dec_in, device:None):
+    def forward(self, dec_in, enc_out, enc_valid_lens, dec_key_values_cache=None, device=None):
         """解码器解码
 
         Args:
-            enc_in (Tensor): shape [batch_size, src_seq_len, d_model] 编码器的输出
             dec_in (Tensor): shape [batch_size, tgt_seq_len] 解码器输入
+            enc_out (Tensor): shape [batch_size, src_seq_len, d_model] 编码器的输出
+            enc_valid_lens (Tensor) shape [batch_size]
         """
         # 对dec_in embedding
         embedings = self.embedding(dec_in) # shape [batch_size, tgt_seq_len, d_model]
         # 添加位置编码
         blk_in = self.positional_encoding(embedings)
-        # 计算dec_in掩码
-        dec_in_valid_lens = torch.arange(1, dec_in.shape[1] + 1, device=device).repeat(dec_in.shape[0], 1)
         # decoder block 
-        for blk in self.dec_blks:
-            blk_in = blk(enc_in, enc_valid_lens, blk_in, dec_in_valid_lens)
-
+        for i, blk in enumerate(self.dec_blks):
+            blk_in = blk(blk_in, enc_out, enc_valid_lens, dec_key_values_cache, device)
         return blk_in
+    
+
+    def init_dec_key_values_cache(self):
+        """初始化解码器层输入缓存，在预测阶段使用
+
+        Returns:
+            list[Tensor]: 列表大小固定为num_layers, 第i个decoder layer对应的缓存是list的第i个元素
+        """
+        return [None] * self.num_layers

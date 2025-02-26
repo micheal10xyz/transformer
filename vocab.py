@@ -5,7 +5,6 @@ import tokenizer
 
 train_data_path = 'dataset/damo_mt_testsets_zh2en_news_wmt18.csv'
 df = pd.read_csv(train_data_path)
-df = df.head(10)
 
 class Vocab:
     def __init__(self, tokens, min_freqs=0):
@@ -46,7 +45,7 @@ class Vocab:
 
 
     def get_tokens(self, ids):
-        return map(lambda id: self.id_to_token[id] if id >= 0 and id < len(self.id_to_token) else self.unk)
+        return map(lambda id: self.id_to_token[id] if id >= 0 and id < len(self.id_to_token) else self.unk, ids)
     
     def __len__(self):
         return len(self.id_to_token)
@@ -68,5 +67,9 @@ def tgt_vocab():
     
 # test
 if __name__ == '__main__':
-    vocab = src_vocab()
+    token_ids = [57, 299]
+    vocab = tgt_vocab()
+    tokens = vocab.get_tokens(token_ids)
     print(len(vocab))
+    print(' '.join(tokens))
+    

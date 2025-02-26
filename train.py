@@ -5,6 +5,7 @@ import model
 import vocab
 import tokenizer
 from torch import nn
+import time
 
 def transform_sentence_to_token_ids(sentence, tokenize_func, vocab):
     """把句子变为token_ids，并在末尾填充句子结束标识
@@ -66,11 +67,11 @@ class MaskedCrossEntropyLoss(nn.Module):
 def train():
     # 超参数
     d_model = 512 # 模型向量维度
-    num_epoch = 1 # 训练次数
+    num_epoch = 10 # 训练次数
     device = 'cpu' # Tensor or Module 计算用的设备
     num_layers = 6 # 编码器块，解码器块的个数
     num_heads = 8 # 多头注意力的头数
-    num_ffn_hiddens = 128 # 前反馈层隐藏层的神经元个数
+    num_ffn_hiddens = 2048 # 前反馈层隐藏层的神经元个数
     lr = 1e-4 # 学习率
 
     src_vocab = vocab.src_vocab() # 源语言词典
@@ -85,10 +86,12 @@ def train():
     # 损失函数（目标函数）
     loss = MaskedCrossEntropyLoss()
     for epoch in range(num_epoch):
+        start_time = time.time()
         optimizer.zero_grad()
         data_loader = get_zh_en_data_loader()
         epoch_loss = 0
         for batch_src, batch_tgt in data_loader:
+            batch_start_time = time.time()
             src_batch_token_ids, src_valid_lens = transform_sentences_to_mini_batch(batch_src, tokenizer.tokenize_zh, src_vocab)
             tgt_batch_token_ids, tgt_valid_lens = transform_sentences_to_mini_batch(batch_tgt, tokenizer.tokenize_en, tgt_vocab)
 
@@ -110,9 +113,12 @@ def train():
             optimizer.step()
             # 计算训练周期中的loss
             epoch_loss += l
-            print(f'epoch {epoch} loss {l}')
+            batch_elapse_time = time.time() - batch_start_time
+            print(f'epoch {epoch} loss {l}, elapse time is {batch_elapse_time}')
+            
         epoch_loss = epoch_loss / len(data_loader)
-        print(f'epoch {epoch}, loss is {epoch_loss}')
+        elapse_time = time.time() - start_time
+        print(f'epoch {epoch}, loss is {epoch_loss}, elapse time is {elapse_time}')
     
     # todo 保存模型权重
     torch.save(transformer.state_dict(), 'parameters/transformer_weights')
