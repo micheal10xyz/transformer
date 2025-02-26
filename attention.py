@@ -55,9 +55,14 @@ class DotPructAttention(nn.Module):
         if mask is not None:
             num_heads = queries.shape[0] // valid_lens.shape[0]
             mask = mask.repeat_interleave(num_heads, dim=0)
-            attention_score = attention_score.masked_fill(mask, 1e-6)
+            # print('mask ', mask)
+            # print('mask before ', attention_score)
+            attention_score = attention_score.masked_fill(mask, -1e6)
+            # print('mask after ', attention_score)
         # 对注意力得分softmax，然后和values做矩阵乘法
-        return torch.bmm(torch.softmax(attention_score, dim=2), values)
+        softmax_score = torch.softmax(attention_score, dim=2)
+        # print('softmax score ', softmax_score)
+        return torch.bmm(softmax_score, values)
 
 
 # 多头注意力
@@ -73,7 +78,7 @@ class MultiHeadAttention(nn.Module):
         self.w_o = nn.Linear(d_model, d_model)
     
 
-    def forward(self, queries, keys, values, valid_lens, device: None):
+    def forward(self, queries, keys, values, valid_lens=None, device=None):
         """
         计算多头注意力
         Args:
