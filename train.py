@@ -66,7 +66,7 @@ class MaskedCrossEntropyLoss(nn.Module):
 def train():
     # 超参数
     d_model = 512 # 模型向量维度
-    num_epoch = 3 # 训练次数
+    num_epoch = 1 # 训练次数
     device = 'cpu' # Tensor or Module 计算用的设备
     num_layers = 6 # 编码器块，解码器块的个数
     num_heads = 8 # 多头注意力的头数
@@ -93,15 +93,15 @@ def train():
             tgt_batch_token_ids, tgt_valid_lens = transform_sentences_to_mini_batch(batch_tgt, tokenizer.tokenize_en, tgt_vocab)
 
             # 解码器输入
-            decoder_input = torch.tensor([tgt_vocab.bos_token_id] * tgt_batch_token_ids.shape[0], dtype=torch.long, device=device).reshape(-1, 1)
+            dec_in = torch.tensor([tgt_vocab.bos_token_id] * tgt_batch_token_ids.shape[0], dtype=torch.long, device=device).reshape(-1, 1)
             # Teacher Forcing, 将真实的目标序列作为解码器输入，代替模型的预测输出，加速模型收敛速度
-            decoder_input = torch.cat((decoder_input, tgt_batch_token_ids[:, :-1]), dim=1)
+            dec_in = torch.cat((dec_in, tgt_batch_token_ids[:, :-1]), dim=1)
             
             # 调用模型，预测
-            predict_output = transformer(src_batch_token_ids, src_valid_lens, decoder_input, device)
+            pred_out = transformer(src_batch_token_ids, src_valid_lens, dec_in, device)
 
             # 计算损失
-            l = loss(predict_output, decoder_input, tgt_valid_lens, device)
+            l = loss(pred_out, dec_in, tgt_valid_lens, device)
 
             # 计算梯度
             l.backward()
@@ -111,11 +111,13 @@ def train():
             # 计算训练周期中的loss
             epoch_loss += l
             print(f'epoch {epoch} loss {l}')
-        print(f'epoch No {epoch}, loss is {epoch_loss}')
+        epoch_loss = epoch_loss / len(data_loader)
+        print(f'epoch {epoch}, loss is {epoch_loss}')
+    
+    # todo 保存模型权重
+    torch.save(transformer.state_dict(), 'parameters/transformer_weights')
 
     
-
-
 
 
 if __name__ == '__main__':
