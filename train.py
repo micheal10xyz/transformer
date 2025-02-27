@@ -48,7 +48,7 @@ class MaskedCrossEntropyLoss(nn.Module):
         self.loss = nn.CrossEntropyLoss(reduction='none')
     
 
-    def forward(self, input: torch.Tensor, target: torch.Tensor, valid_lens: torch.Tensor, device=None):
+    def forward(self, input: torch.Tensor, target: torch.Tensor, valid_lens: torch.Tensor):
         """
         掩码交叉熵损失
         Args:
@@ -58,7 +58,7 @@ class MaskedCrossEntropyLoss(nn.Module):
         """
         batch_size = input.shape[0]
         seq_len = input.shape[1]
-        mask = torch.arange(seq_len, device=device).repeat(batch_size, 1) >= valid_lens.reshape(-1, 1)
+        mask = torch.arange(seq_len).repeat(batch_size, 1) >= valid_lens.reshape(-1, 1)
         l = self.loss(input.transpose(1, 2), target)
         return l[~mask].mean()
 
@@ -66,12 +66,12 @@ class MaskedCrossEntropyLoss(nn.Module):
 
 def train():
     # 超参数
-    d_model = 512 # 模型向量维度
+    d_model = 64 # 模型向量维度
     num_epoch = 10 # 训练次数
     device = 'cpu' # Tensor or Module 计算用的设备
     num_layers = 6 # 编码器块，解码器块的个数
-    num_heads = 8 # 多头注意力的头数
-    num_ffn_hiddens = 2048 # 前反馈层隐藏层的神经元个数
+    num_heads = 4 # 多头注意力的头数
+    num_ffn_hiddens = 256 # 前反馈层隐藏层的神经元个数
     lr = 1e-4 # 学习率
 
     src_vocab = vocab.src_vocab() # 源语言词典
@@ -101,10 +101,10 @@ def train():
             dec_in = torch.cat((dec_in, tgt_batch_token_ids[:, :-1]), dim=1)
             
             # 调用模型，预测
-            pred_out = transformer(src_batch_token_ids, src_valid_lens, dec_in, device)
+            pred_out = transformer(src_batch_token_ids, src_valid_lens, dec_in)
 
             # 计算损失
-            l = loss(pred_out, dec_in, tgt_valid_lens, device)
+            l = loss(pred_out, dec_in, tgt_valid_lens)
 
             # 计算梯度
             l.backward()

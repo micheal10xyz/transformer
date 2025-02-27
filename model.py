@@ -11,8 +11,8 @@ class Transformer(nn.Module):
         self.linear = nn.Linear(d_model, tgt_vocab_size)
     
     
-    def forward(self, enc_in, enc_valid_lens, dec_in, device=None):
-       enc_out = self.encoder(enc_in, enc_valid_lens, device)
-       dec_out = self.decoder(dec_in, enc_out, enc_valid_lens, None, device)
+    def forward(self, enc_in, enc_valid_lens, dec_in):
+       enc_out = self.encoder(enc_in, enc_valid_lens)
+       dec_out = self.decoder(dec_in, enc_out, enc_valid_lens, None)
        # 计算logits
        return self.linear(dec_out)

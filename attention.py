@@ -2,14 +2,13 @@ import torch
 from torch import nn
 import math
 
-def encode_mask(q_seq_len, k_seq_len, valid_lens, device=None):
+def encode_mask(q_seq_len, k_seq_len, valid_lens):
     """
     计算编码器掩码
     Args:
         q_seq_len (int): query序列长度
         k_seq_len (int): key序列长度
         valid_lens (Tensor): shape [batch_size] or [batch_size, k_seq_len] 有效长度
-        device(str): 在device运行存储张量
 
     Returns:
         Tensor: dtype bool, shape [batch_size, q_seq_len, k_seq_len], 编码器掩码
@@ -21,7 +20,7 @@ def encode_mask(q_seq_len, k_seq_len, valid_lens, device=None):
     else:
         pass
     
-    return torch.arange(k_seq_len, device=device).repeat(valid_lens.shape[0], 1).unsqueeze(1) >= valid_lens.unsqueeze(2)
+    return torch.arange(k_seq_len).repeat(valid_lens.shape[0], 1).unsqueeze(1) >= valid_lens.unsqueeze(2)
     # mask = torch.arange(seq_len, device=device).unsqueeze(0) >= valid_lens.unsqueeze(1)
     # return mask.unsqueeze(1).repeat(1, seq_len, 1)
 
@@ -31,7 +30,7 @@ class DotPructAttention(nn.Module):
         super().__init__(*args, **kwargs)
     
     
-    def forward(self, queries, keys, values, valid_lens, device=None):
+    def forward(self, queries, keys, values, valid_lens):
         """计算缩放点积注意力
 
         Args:
@@ -39,7 +38,6 @@ class DotPructAttention(nn.Module):
             keys (Tensor): shape [batch_size * num_heads, k_seq_len, h_d_model]
             values (Tensor): shape [batch_size * num_heads, v_seq_len, h_d_model]
             valid_lens (Tensor): shape [batch_size] or [batch_size, k_seq_len] 有效长度
-            device (str): 在device运行存储张量
 
         Returns:
             Tensor: shape [batch_size * num_heads, q_seq_len, h_d_model]， 注意力矩阵
@@ -51,7 +49,7 @@ class DotPructAttention(nn.Module):
         # 计算编码器掩码，遮挡注意力得分
         q_seq_len = queries.shape[1]
         k_seq_len = keys.shape[1]
-        mask = encode_mask(q_seq_len, k_seq_len, valid_lens, device)
+        mask = encode_mask(q_seq_len, k_seq_len, valid_lens)
         if mask is not None:
             num_heads = queries.shape[0] // valid_lens.shape[0]
             mask = mask.repeat_interleave(num_heads, dim=0)
@@ -78,7 +76,7 @@ class MultiHeadAttention(nn.Module):
         self.w_o = nn.Linear(d_model, d_model)
     
 
-    def forward(self, queries, keys, values, valid_lens=None, device=None):
+    def forward(self, queries, keys, values, valid_lens=None):
         """
         计算多头注意力
         Args:
@@ -86,7 +84,6 @@ class MultiHeadAttention(nn.Module):
             keys (Tensor): shape [batch_size, k_seq_len, d_model]
             values (Tensor): shape [batch_size, v_seq_len, d_model] v_seq_len == k_seq_len
             valid_lens (Tensor): shape [batch_size] or [batch_size, seq_len] 有效长度
-            device (str): 在device运行存储张量
 
         Returns:
             Tensor: shape [batch_size, seq_len, d_model]
@@ -113,7 +110,7 @@ class MultiHeadAttention(nn.Module):
         v = v.reshape(batch_size * self.num_heads, -1, h_d_model)
 
         # 计算注意力
-        attention_output = self.attention(q, k, v, valid_lens, device)
+        attention_output = self.attention(q, k, v, valid_lens)
         # 拼接多头注意力
         attention_output = attention_output.reshape(batch_size, self.num_heads, q_seq_len, h_d_model).transpose(1,2).reshape(batch_size, q_seq_len, -1)
         # 多头注意力输出

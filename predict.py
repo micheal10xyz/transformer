@@ -4,6 +4,8 @@ from model import Transformer
 from vocab import Vocab
 import tokenizer
 import vocab
+import pandas as pd
+import time
 
 
 def predict(model: Transformer, src_sentence: str, src_vocab: Vocab, tgt_vocab: Vocab, num_steps: int, device: str=None):
@@ -34,7 +36,7 @@ def predict(model: Transformer, src_sentence: str, src_vocab: Vocab, tgt_vocab: 
         if pred_token_id == tgt_vocab.eos_token_id:
             break
         target_output.append(pred_token_id)
-        print('pred token id is', pred_token_id)
+        print('pred token_id is ', pred_token_id)
 
     # 返回输出
     return ' '.join(tgt_vocab.get_tokens(target_output))
@@ -42,19 +44,24 @@ def predict(model: Transformer, src_sentence: str, src_vocab: Vocab, tgt_vocab: 
 
 if __name__ == '__main__':
      # 超参数
-    d_model = 512 # 模型向量维度
+    d_model = 64 # 模型向量维度
     num_epoch = 10 # 训练次数
     device = 'cpu' # Tensor or Module 计算用的设备
     num_layers = 6 # 编码器块，解码器块的个数
-    num_heads = 8 # 多头注意力的头数
-    num_ffn_hiddens = 2048 # 前反馈层隐藏层的神经元个数
+    num_heads = 4 # 多头注意力的头数
+    num_ffn_hiddens = 256 # 前反馈层隐藏层的神经元个数
     lr = 1e-4 # 学习率
 
     src_vocab = vocab.src_vocab() # 源语言词典
     tgt_vocab = vocab.tgt_vocab() # 目标语言词典
 
     transformer = Transformer(d_model=d_model, num_layers=num_layers, num_heads=num_heads, num_ffn_hiddens=num_ffn_hiddens, src_vocab_size=len(src_vocab), tgt_vocab_size=len(tgt_vocab))
+    transformer.to(device)
     checkpoint = torch.load('parameters/transformer_weights')
     transformer.load_state_dict(checkpoint)
-    src_sentence = '在功能手机时代，手机的基本功能就是打电话、发短信、简单的备忘录，各种手机在功能上差距是不大的。'
-    print(predict(transformer, src_sentence, src_vocab, tgt_vocab, 10, device))
+    train_data_path = 'dataset/damo_mt_testsets_zh2en_news_wmt18.csv'
+    df = pd.read_csv(train_data_path)
+    for src_sentence in df['0']:
+        print(src_sentence)
+        print(predict(transformer, src_sentence, src_vocab, tgt_vocab, 10))
+        time.sleep(5)

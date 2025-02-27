@@ -45,7 +45,8 @@ class Vocab:
 
 
     def get_tokens(self, ids):
-        return map(lambda id: self.id_to_token[id] if id >= 0 and id < len(self.id_to_token) else self.unk, ids)
+        return [self.id_to_token[id] if id >= 0 and id < len(self.id_to_token) else self.unk for id in ids]
+        # return map(lambda id: self.id_to_token[id] if id >= 0 and id < len(self.id_to_token) else self.unk, ids)
     
     def __len__(self):
         return len(self.id_to_token)
@@ -71,5 +72,6 @@ if __name__ == '__main__':
     vocab = tgt_vocab()
     tokens = vocab.get_tokens(token_ids)
     print(len(vocab))
+    print(tokens)
     print(' '.join(tokens))
     
