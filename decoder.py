@@ -57,6 +57,7 @@ class Decoder(nn.Module):
         for i in range(num_layers):
             self.blks.add_module('block_' + str(i), Block(d_model, num_heads, num_ffn_hiddens, i))
         self.num_layers = num_layers
+        self.linear = nn.Linear(d_model, vocab_size)
     
     def forward(self, dec_in, enc_out, enc_valid_lens, dec_key_values_cache=None):
         """解码器解码
@@ -73,7 +74,8 @@ class Decoder(nn.Module):
         # decoder block 
         for i, blk in enumerate(self.blks):
             blk_in = blk(blk_in, enc_out, enc_valid_lens, dec_key_values_cache)
-        return blk_in
+        # 计算logits
+        return self.linear(blk_in)
     
 
     def init_dec_key_values_cache(self):

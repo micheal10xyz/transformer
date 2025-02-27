@@ -6,6 +6,7 @@ import vocab
 import tokenizer
 from torch import nn
 import time
+import predict
 
 def transform_sentence_to_token_ids(sentence, tokenize_func, vocab):
     """把句子变为token_ids，并在末尾填充句子结束标识
@@ -63,6 +64,8 @@ class MaskedCrossEntropyLoss(nn.Module):
         return l[~mask].mean()
 
 
+src_vocab = vocab.src_vocab() # 源语言词典
+tgt_vocab = vocab.tgt_vocab() # 目标语言词典
 
 def train():
     # 超参数
@@ -74,9 +77,6 @@ def train():
     num_ffn_hiddens = 256 # 前反馈层隐藏层的神经元个数
     lr = 1e-4 # 学习率
 
-    src_vocab = vocab.src_vocab() # 源语言词典
-    tgt_vocab = vocab.tgt_vocab() # 目标语言词典
-
     transformer = model.Transformer(d_model=d_model, num_layers=num_layers, num_heads=num_heads, num_ffn_hiddens=num_ffn_hiddens, src_vocab_size=len(src_vocab), tgt_vocab_size=len(tgt_vocab))
     # todo 权重初始化，加速收敛
     transformer.to(device)
@@ -84,7 +84,7 @@ def train():
     # 优化算法
     optimizer = torch.optim.Adam(transformer.parameters(), lr=lr)
     # 损失函数（目标函数）
-    loss = MaskedCrossEntropyLoss()
+    loss = nn.CrossEntropyLoss()
     for epoch in range(num_epoch):
         start_time = time.time()
         optimizer.zero_grad()
@@ -104,7 +104,7 @@ def train():
             pred_out = transformer(src_batch_token_ids, src_valid_lens, dec_in)
 
             # 计算损失
-            l = loss(pred_out, dec_in, tgt_valid_lens)
+            l = loss(pred_out.transpose(1,2), dec_in)
 
             # 计算梯度
             l.backward()
@@ -122,9 +122,16 @@ def train():
     
     # todo 保存模型权重
     torch.save(transformer.state_dict(), 'parameters/transformer_weights')
+    return transformer
 
     
 
 
 if __name__ == '__main__':
-    train()
+    net = train()
+    train_data_path = 'dataset/damo_mt_testsets_zh2en_news_wmt18.csv'
+    df = pd.read_csv(train_data_path)
+    for src_sentence in df['0']:
+        print(src_sentence)
+        print(predict.predict(net, src_sentence, src_vocab, tgt_vocab, 10))
+        time.sleep(5)

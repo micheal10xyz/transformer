@@ -22,7 +22,7 @@ def predict(model: Transformer, src_sentence: str, src_vocab: Vocab, tgt_vocab: 
     dec_in = torch.tensor(tgt_token_ids, dtype=torch.long, device=device).unsqueeze(0) # shape [1, tgt_seq_len]
 
     # 对源语言序列编码
-    enc_out = model.encoder(enc_in, enc_valid_lens, device)
+    enc_out = model.encoder(enc_in, enc_valid_lens)
 
     # 初始化内部缓存，用来缓存历史时间步decoder-layer的输出，避免对token的重复解码，保证对一个token解码一次，再次使用，查询缓存
     dec_key_values_cache = model.decoder.init_dec_key_values_cache()
@@ -30,13 +30,18 @@ def predict(model: Transformer, src_sentence: str, src_vocab: Vocab, tgt_vocab: 
     target_output = []
     # 循环调用大模型
     for _ in range(num_steps):
-        pred_out = model.decoder(dec_in, enc_out, enc_valid_lens, dec_key_values_cache, device)
-        dec_in = pred_out.argmax(dim=2)
-        pred_token_id = dec_in.squeeze(dim=0).type(torch.int)
+        pred_out = model.decoder(dec_in, enc_out, enc_valid_lens, None)
+        print('pred_ouot size', pred_out.shape)
+        # print('pred vacab prob ', pred_out)
+        pred_token_out = pred_out[:, -1, 3:]
+
+        pred_token_id = pred_token_out.argmax(dim=1).squeeze(dim=0).type(torch.int)
+        pred_token_id += 3
         if pred_token_id == tgt_vocab.eos_token_id:
             break
         target_output.append(pred_token_id)
         print('pred token_id is ', pred_token_id)
+        dec_in = torch.cat((dec_in, torch.tensor([[pred_token_id]], dtype=torch.long)), dim=1)
 
     # 返回输出
     return ' '.join(tgt_vocab.get_tokens(target_output))
